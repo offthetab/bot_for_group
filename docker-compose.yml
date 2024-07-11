@@ -1,0 +1,41 @@
+version: '3.9'
+
+services:
+  db:
+    image: postgres:14-alpine
+    container_name: postgres_container
+    restart: on-failure
+    env_file: 
+      - ./.env
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - pg-data:/var/lib/postgresql/data
+    ports:
+      - 5433:${POSTGRES_PORT}
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin_container
+    restart: on-failure
+    env_file: 
+      - ./.env
+    ports:
+      - 8080:80
+    depends_on:
+      - db
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+
+
+  bot:
+    build:
+      context: .
+    restart: always
+    env_file: 
+      - ./.env
+    depends_on:
+      - db
+
+volumes:
+    pg-data:
+    pgadmin-data:
