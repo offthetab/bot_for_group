@@ -1,5 +1,6 @@
-from pydantic import SecretStr, PostgresDsn
+from pydantic import SecretStr, PostgresDsn, Field, validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import List
 
 
 class Settings(BaseSettings):
@@ -8,7 +9,6 @@ class Settings(BaseSettings):
     admin: int
 
     model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8', extra='ignore')
+    
 
 settings = Settings()
-print(settings.db_url)
-print(type(settings.db_url))

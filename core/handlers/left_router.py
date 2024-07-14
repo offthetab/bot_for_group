@@ -5,7 +5,7 @@ from aiogram.filters import CommandStart, IS_MEMBER, IS_NOT_MEMBER
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 # importing filters
-from filters.bot_filters import MemberTypeFilter
+from core.filters.bot_filters import MemberTypeFilter
 
 
 left_router = Router()

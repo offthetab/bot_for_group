@@ -8,10 +8,10 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
 # importing admin keyboards
-from keyboards.admin_keyboard import admin_main_kb
+from core.keyboards.admin_keyboard import admin_main_kb
 
 # importing filters
-from filters.bot_filters import MemberTypeFilter
+from core.filters.bot_filters import MemberTypeFilter
 
 admin_router = Router()
 admin_router.message.filter(MemberTypeFilter(["creator", "admin"]))

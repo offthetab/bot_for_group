@@ -6,12 +6,12 @@ from aiogram.filters import Command, CommandStart
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 
-from handlers.admin_router import admin_router
-from handlers.member_router import member_router
-from handlers.left_router import left_router
+from core.handlers.admin_router import admin_router
+from core.handlers.member_router import member_router
+from core.handlers.left_router import left_router
 
 # importing .env data 
-from config import settings
+from core.config import settings
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 

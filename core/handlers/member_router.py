@@ -3,9 +3,9 @@ from aiogram.types import Message, FSInputFile, CallbackQuery, InlineKeyboardBut
 from aiogram.filters import Command, CommandStart, IS_MEMBER, IS_NOT_MEMBER
 
 # importing filters
-from filters.bot_filters import MemberTypeFilter
-from keyboards.member_keyboard import main_user_keyboard, back_btn
-from keyboards.member_keyboard import UserAction, Category
+from core.filters.bot_filters import MemberTypeFilter
+from core.keyboards.member_keyboard import main_user_keyboard, back_btn
+from core.keyboards.member_keyboard import UserAction, Category
 
 
 member_router = Router()

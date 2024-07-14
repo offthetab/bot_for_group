@@ -20,7 +20,7 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-from database import Base
+from core.database import Base
 target_metadata = Base.metadata
 
 
@@ -30,7 +30,7 @@ target_metadata = Base.metadata
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
 
-from config import settings
+from core.config import settings
 config.set_main_option("sqlalchemy.url", settings.db_url)
 
 def run_migrations_offline() -> None:
