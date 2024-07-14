@@ -2,10 +2,13 @@ from aiogram import Router, F
 from aiogram.types import Message, FSInputFile, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.filters import Command, CommandStart, IS_MEMBER, IS_NOT_MEMBER
 
-# importing filters
 from core.filters.bot_filters import MemberTypeFilter
 from core.keyboards.member_keyboard import main_user_keyboard, back_btn
 from core.keyboards.member_keyboard import UserAction, Category
+
+# DB
+from sqlalchemy.ext.asyncio import AsyncSession
+from core.database.models import User
 
 
 member_router = Router()
@@ -13,11 +16,12 @@ member_router.message.filter(MemberTypeFilter(["member", "creator", "admin"]))
 
 
 @member_router.message(CommandStart())
-async def cmd_start(message: Message):
-    # await add_user(telegram_id=message.from_user.id, 
-    #                name=message.from_user.first_name, 
-    #                surname=message.from_user.last_name, 
-    #                username=message.from_user.username)
+async def cmd_start(message: Message, session: AsyncSession):
+    await session.merge(User(id=message.from_user.id,
+                    name=message.from_user.first_name,
+                    surname=message.from_user.last_name, 
+                    username=message.from_user.username))
+    await session.commit()
     
     await message.answer(
         f"Добро пожаловать. Тут ты узнаешь о самом интересном в мире автомобилей 🚘.",

@@ -1,28 +1,30 @@
 from aiogram import Bot, Router, F
 from aiogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
-
 from aiogram.filters import Command
-
-# FSM support
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
 # importing admin keyboards
 from core.keyboards.admin_keyboard import admin_main_kb
-
-# importing filters
 from core.filters.bot_filters import MemberTypeFilter
+
+# DB
+from sqlalchemy.ext.asyncio import AsyncSession
+from core.database.models import User
+
 
 admin_router = Router()
 admin_router.message.filter(MemberTypeFilter(["creator", "admin"]))
 
 
 @admin_router.message(Command("admin"))
-async def cmd_start(message: Message):
-    # await add_user(telegram_id=message.from_user.id, #TODO add user
-    #                name=message.from_user.first_name, 
-    #                surname=message.from_user.last_name, 
-    #                username=message.from_user.username)
+async def cmd_start(message: Message, session: AsyncSession):
+    await session.merge(User(id=message.from_user.id,
+                    name=message.from_user.first_name,
+                    surname=message.from_user.last_name, 
+                    username=message.from_user.username))
+    await session.commit()
+
     await message.answer(
         f"Добро пожаловать. Вы авторизовались как создатель или админ сообщества! Тут вы можете управлять вашим каналом.",
         reply_markup=admin_main_kb
