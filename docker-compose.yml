@@ -8,7 +8,6 @@ services:
     env_file: 
       - ./.env
     volumes:
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
       - pg-data:/var/lib/postgresql/data
     ports:
       - 5433:${POSTGRES_PORT}

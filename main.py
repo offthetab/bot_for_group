@@ -11,7 +11,10 @@ from handlers.member_router import member_router
 from handlers.left_router import left_router
 
 # importing .env data 
-from config import TOKEN, ADMIN_ID
+from config import TOKEN, ADMIN_ID, url
+
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
 
 async def on_startup(bot: Bot):
     await bot.send_message(chat_id=ADMIN_ID, text="Бот был успешно запущен")
@@ -19,6 +22,9 @@ async def on_startup(bot: Bot):
 
 # Запуск бота
 async def main():
+    engine = create_async_engine(url=url, echo=True)
+    sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
+
     bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp = Dispatcher()
     dp.startup.register(on_startup)
