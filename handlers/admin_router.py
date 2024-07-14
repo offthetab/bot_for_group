@@ -13,20 +13,16 @@ from keyboards.admin_keyboard import admin_main_kb
 # importing filters
 from filters.bot_filters import MemberTypeFilter
 
-from database.engine import add_user, get_all_users, add_document
-
-
-
 admin_router = Router()
 admin_router.message.filter(MemberTypeFilter(["creator", "admin"]))
 
 
 @admin_router.message(Command("admin"))
 async def cmd_start(message: Message):
-    await add_user(telegram_id=message.from_user.id, 
-                   name=message.from_user.first_name, 
-                   surname=message.from_user.last_name, 
-                   username=message.from_user.username)
+    # await add_user(telegram_id=message.from_user.id, #TODO add user
+    #                name=message.from_user.first_name, 
+    #                surname=message.from_user.last_name, 
+    #                username=message.from_user.username)
     await message.answer(
         f"Добро пожаловать. Вы авторизовались как создатель или админ сообщества! Тут вы можете управлять вашим каналом.",
         reply_markup=admin_main_kb
@@ -272,7 +268,7 @@ async def get_file(message: Message, state: FSMContext):
     input_data = await state.get_data()
     await message.answer(text='Файл в рассылке был обновлен')
 
-    await add_document(file_id=input_data.get('input_file'), caption=message.caption)
+    # await add_document(file_id=input_data.get('input_file'), caption=message.caption) # TODO adding docs
     await state.clear()
 
 
@@ -284,8 +280,8 @@ class MassMailing(StatesGroup):
 
 @admin_router.message(F.text.lower() == 'рассылка для пользователей')
 async def start_dist(message: Message):
-    message.chat.id
-    users_lst = await get_all_users()
-    telegram_ids = [str(record['telegram_id']) for record in users_lst]
-    await message.answer(text=','.join(telegram_ids))
+    # users_lst = await get_all_users() # TODO get all users
+    # telegram_ids = [str(record['telegram_id']) for record in users_lst]
+    # await message.answer(text=','.join(telegram_ids))
+    await message.answer(text='123')
         

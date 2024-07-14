@@ -1,15 +1,14 @@
-import os
-from dotenv import load_dotenv, find_dotenv
+from pydantic import SecretStr, PostgresDsn
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
-load_dotenv(find_dotenv())
 
-TOKEN = os.environ.get("TELEGRAM_TOKEN")
-ADMIN_ID = os.environ.get("TELEGRAM_BOT_ADMIN_ID")
+class Settings(BaseSettings):
+    bot_token: SecretStr
+    db_url: str
+    admin: int
 
-POSTGRES_HOST = os.environ.get("POSTGRES_HOST")
-POSTGRES_DB = os.environ.get("POSTGRES_DB")
-POSTGRES_USER = os.environ.get("POSTGRES_USER")
-POSTGRES_PASSWORD = os.environ.get("POSTGRES_PASSWORD")
-POSTGRES_PORT = os.environ.get("POSTGRES_PORT")
+    model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8', extra='ignore')
 
-url=f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
+settings = Settings()
+print(settings.db_url)
+print(type(settings.db_url))

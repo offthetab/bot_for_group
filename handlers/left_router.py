@@ -7,8 +7,6 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 # importing filters
 from filters.bot_filters import MemberTypeFilter
 
-from database.engine import add_user
-
 
 left_router = Router()
 left_router.message.filter(MemberTypeFilter(["left"]))
@@ -16,10 +14,10 @@ left_router.message.filter(MemberTypeFilter(["left"]))
 
 @left_router.message(CommandStart())
 async def cmd_start(message: Message):
-    await add_user(telegram_id=message.from_user.id,
-                    name=message.from_user.first_name,
-                    surname=message.from_user.last_name, 
-                    username=message.from_user.username)
+    # await add_user(telegram_id=message.from_user.id,
+    #                 name=message.from_user.first_name,
+    #                 surname=message.from_user.last_name, 
+    #                 username=message.from_user.username)
     
     await message.answer(
         text="Добро пожаловать, тут ты можешь узнать все самое интересное в мире автомобилей и получать приватную информацию!" + "\n" + "<b>Однако для этого необходимо подписаться на группу</b>" 
