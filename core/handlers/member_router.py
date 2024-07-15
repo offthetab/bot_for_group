@@ -8,7 +8,9 @@ from core.keyboards.member_keyboard import UserAction, Category
 
 # DB
 from sqlalchemy.ext.asyncio import AsyncSession
-from core.database.models import User
+from sqlalchemy import select
+from sqlalchemy.exc import NoResultFound
+from core.database.models import User, Document
 
 
 member_router = Router()
@@ -37,20 +39,18 @@ async def send_post(callback: CallbackQuery):
 
 
 @member_router.callback_query(UserAction.filter(F.category == Category.get_guide))
-async def get_guide(callback: CallbackQuery, callback_data: UserAction):
-    # querry = await get_active_document()
-    # try:
-    #     document = querry['file_id']
-    #     caption = querry['caption']
-    #     await callback.message.delete()
-    #     await callback.message.answer_document(document, caption=caption, reply_markup=back_btn(level=callback_data.level).as_markup()) # TODO add button back to menu        
-    # except TypeError:
-    #     await callback.message.answer(text='<b>На данный момент нет файла.😔</b>')
-    # except:
-    #     await callback.message.answer(text='<b>Что-то пошло не так.😔</b>')
+async def get_guide(callback: CallbackQuery, callback_data: UserAction, session: AsyncSession):
+    try:
+        stmt = select(Document).where(Document.status == True)
+        result = await session.execute(statement=stmt)
 
-    await callback.message.answer(text='<b>Что-то пошло не так.😔</b>')  
-  
+        result_set = result.scalar_one()
+        await callback.message.delete()
+        await callback.message.answer_document(result_set.file_id, caption=result_set.caption) # TODO add button back to menu     
+    except NoResultFound:
+        await callback.message.answer(text="<b>На данный момент нет файла.😔</b>")  
+    except:
+        await callback.message.answer(text="<b>Произошла ошибка.😔</b>")  
 
 @member_router.callback_query(UserAction.filter(F.category == Category.get_services))
 async def get_services(callback: CallbackQuery):

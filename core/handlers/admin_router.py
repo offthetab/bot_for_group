@@ -6,11 +6,12 @@ from aiogram.fsm.state import State, StatesGroup
 
 # importing admin keyboards
 from core.keyboards.admin_keyboard import admin_main_kb
+from sqlalchemy import update
 from core.filters.bot_filters import MemberTypeFilter
 
 # DB
 from sqlalchemy.ext.asyncio import AsyncSession
-from core.database.models import User
+from core.database.models import User, Document
 
 
 admin_router = Router()
@@ -264,13 +265,16 @@ async def cancel_file_input(callback: CallbackQuery, state: FSMContext):
 
 # admin sends file
 @admin_router.message(FileDistribution.input_file, F.document)
-async def get_file(message: Message, state: FSMContext):
+async def get_file(message: Message, state: FSMContext, session: AsyncSession):
     await state.update_data(input_file=message.document.file_id)
-
     input_data = await state.get_data()
+
+    stmt = update(Document).where(Document.status == True).values(status=False)
+    await session.execute(stmt)
+    await session.merge(Document(file_id=input_data.get('input_file'), caption=message.caption, status=True))
+    await session.commit()
     await message.answer(text='Файл в рассылке был обновлен')
 
-    # await add_document(file_id=input_data.get('input_file'), caption=message.caption) # TODO adding docs
     await state.clear()
 
 
@@ -286,4 +290,3 @@ async def start_dist(message: Message):
     # telegram_ids = [str(record['telegram_id']) for record in users_lst]
     # await message.answer(text=','.join(telegram_ids))
     await message.answer(text='123')
-        
