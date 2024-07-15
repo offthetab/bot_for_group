@@ -12,18 +12,18 @@ services:
     ports:
       - 5433:${POSTGRES_PORT}
 
-  pgadmin:
-    image: dpage/pgadmin4
-    container_name: pgadmin_container
-    restart: on-failure
-    env_file: 
-      - ./.env
-    ports:
-      - 8080:80
-    depends_on:
-      - db
-    volumes:
-      - pgadmin-data:/var/lib/pgadmin
+  # pgadmin:
+  #   image: dpage/pgadmin4
+  #   container_name: pgadmin_container
+  #   restart: on-failure
+  #   env_file: 
+  #     - ./.env
+  #   ports:
+  #     - 8080:80
+  #   depends_on:
+  #     - db
+  #   volumes:
+  #     - pgadmin-data:/var/lib/pgadmin
 
 
   bot:
@@ -37,4 +37,4 @@ services:
 
 volumes:
     pg-data:
-    pgadmin-data:
+#     # pgadmin-data:
