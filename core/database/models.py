@@ -16,7 +16,6 @@ class User(Base):
 class Document(Base):
     __tablename__ = 'documents'
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    file_id: Mapped[str] = mapped_column(String, nullable=False)
+    file_id: Mapped[str] = mapped_column(String, primary_key=True, unique=True, autoincrement=False)
     caption: Mapped[str] = mapped_column(String, nullable=True)
-    status: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    status: Mapped[bool] = mapped_column(Boolean, nullable=True)
