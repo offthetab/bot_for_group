@@ -6,7 +6,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.exceptions import TelegramRetryAfter, TelegramForbiddenError 
 
 # importing admin keyboards
-from core.keyboards.admin_keyboard import admin_main_kb
+from core.keyboards.admin_keyboard import admin_main_kb, if_add_photo, close_configurer, if_add_inline
 from sqlalchemy import update, select
 from core.filters.bot_filters import MemberTypeFilter
 
@@ -44,10 +44,7 @@ class Form(StatesGroup):
 @admin_router.message(F.text.lower() == 'конфигуратор поста с кнопкой')
 async def cmd_start(message: Message, bot: Bot, state: FSMContext):
     await state.set_state(Form.post_text)
-    await message.answer(text='Это конфигуратор поста в группу с кнопкой. Для начала укажите текст поста', reply_markup=InlineKeyboardMarkup(
-                                        inline_keyboard=[
-                                            [InlineKeyboardButton(text='Закрыть конфигуратор❌', callback_data='close_configurator')]
-                                        ]))
+    await message.answer(text='Это конфигуратор поста в группу с кнопкой. Для начала укажите текст поста', reply_markup=close_configurer)
 
 # getting post text
 @admin_router.message(Form.post_text, F.text)
@@ -55,26 +52,18 @@ async def process_post_text(message: Message, state: FSMContext) -> None:
 
     await state.update_data(post_text=message.text)
     await state.set_state(Form.if_media)
-    await message.answer(text='Добавить одно фото или видео к посту?', reply_markup=InlineKeyboardMarkup(
-                                        inline_keyboard=[
-                                            [InlineKeyboardButton(text='Да✅', callback_data='add_photo')],
-                                            [InlineKeyboardButton(text='Нет🚫', callback_data='no_photo')],
-                                            [InlineKeyboardButton(text='Закрыть конфигуратор❌', callback_data='close_configurator')] # TODO cancel
-                                        ]))
+    await message.answer(text='Добавить одно фото или видео к посту?', reply_markup=if_add_photo)
 
 # getting post text (user send not text)
 @admin_router.message(Form.post_text, ~F.text)
 async def process_post_text(message: Message, state: FSMContext) -> None:
-    await message.answer(text='Вам нужно прислать именно текст поста!', reply_markup=InlineKeyboardMarkup(
-                                        inline_keyboard=[
-                                            [InlineKeyboardButton(text='Закрыть конфигуратор❌', callback_data='close_configurator')]
-                                        ]))
+    await message.answer(text='Вам нужно прислать именно текст поста!', reply_markup=close_configurer)
 
 # user wants to add photo/video
 @admin_router.callback_query(F.data == 'add_photo', Form.if_media)
 async def ask_for_photo(callback: CallbackQuery, state: FSMContext):
     await state.set_state(Form.photo_file_id)
-    await callback.message.answer(text='Присылайте фотографию или видео')
+    await callback.message.answer(text='Присылайте фотографию или видео', reply_markup=close_configurer)
 
 # user does not want to add photo/video
 @admin_router.callback_query(F.data == 'no_photo', Form.if_media)
@@ -82,10 +71,7 @@ async def ask_for_photo(callback: CallbackQuery, state: FSMContext):
     await state.set_state(Form.photo_file_id)
     await state.update_data(photo_file_id=None)
     await state.set_state(Form.button_text)
-    await callback.message.answer(text='Введите текст, который будет отображаться на кнопке', reply_markup=InlineKeyboardMarkup(
-                                        inline_keyboard=[
-                                            [InlineKeyboardButton(text='Закрыть конфигуратор❌', callback_data='close_configurator')]
-                                        ]))
+    await callback.message.answer(text='Введите текст, который будет отображаться на кнопке', reply_markup=close_configurer)
 
 @admin_router.message(Form.if_media)
 async def skipped_buttons(message: Message, state: FSMContext):
@@ -101,46 +87,31 @@ async def skipped_buttons(message: Message, state: FSMContext):
 async def process_post_image(message: Message, state: FSMContext) -> None:
     await state.update_data(photo_file_id=[message.photo[-1].file_id, 'photo'])
     await state.set_state(Form.button_text)
-    await message.answer(text='Введите текст, который будет отображаться на кнопке', reply_markup=InlineKeyboardMarkup(
-                                        inline_keyboard=[
-                                            [InlineKeyboardButton(text='Закрыть конфигуратор❌', callback_data='close_configurator')]
-                                        ]))
+    await message.answer(text='Введите текст, который будет отображаться на кнопке', reply_markup=close_configurer)
 
 # getting post video
 @admin_router.message(Form.photo_file_id, F.video)
 async def process_post_video(message: Message, state: FSMContext) -> None:
     await state.update_data(photo_file_id=[message.video.file_id, 'video'])
     await state.set_state(Form.button_text)
-    await message.answer(text='Введите текст, который будет отображаться на кнопке', reply_markup=InlineKeyboardMarkup(
-                                        inline_keyboard=[
-                                            [InlineKeyboardButton(text='Закрыть конфигуратор❌', callback_data='close_configurator')]
-                                        ]))
+    await message.answer(text='Введите текст, который будет отображаться на кнопке', reply_markup=close_configurer)
 
 # user send neither photo nor video
 @admin_router.message(Form.photo_file_id, ~(F.video | F.photo))
 async def not_photo_video(message: Message, state: FSMContext) -> None:
-    await message.answer(text='Пришлите фотографию или видео‼️', reply_markup=InlineKeyboardMarkup(
-                                        inline_keyboard=[
-                                            [InlineKeyboardButton(text='Закрыть конфигуратор❌', callback_data='close_configurator')]
-                                        ]))
+    await message.answer(text='Пришлите фотографию или видео‼️', reply_markup=close_configurer)
 
 # getting inline button text TODO support multiple btns 
 @admin_router.message(Form.button_text, F.text)
 async def process_button_text(message: Message, state: FSMContext) -> None:
     await state.update_data(button_text=message.text)
     await state.set_state(Form.button_url)
-    await message.answer(text='Введите ссылку, на которую будет перекидывать кнопка (это может быть телеграмм бот, канал или любая сторонняя ссылка)', reply_markup=InlineKeyboardMarkup(
-                                        inline_keyboard=[
-                                            [InlineKeyboardButton(text='Закрыть конфигуратор❌', callback_data='close_configurator')]
-                                        ]))
+    await message.answer(text='Введите ссылку, на которую будет перекидывать кнопка (это может быть телеграмм бот, канал или любая сторонняя ссылка)', reply_markup=close_configurer)
 
 # incorrect inline button text
 @admin_router.message(Form.button_text, ~F.text)
 async def process_button_text(message: Message, state: FSMContext) -> None:
-    await message.answer(text='Введите текст кнопки‼️', reply_markup=InlineKeyboardMarkup(
-                                        inline_keyboard=[
-                                            [InlineKeyboardButton(text='Закрыть конфигуратор❌', callback_data='close_configurator')]
-                                        ]))    
+    await message.answer(text='Введите текст кнопки‼️', reply_markup=close_configurer)    
 
 # getting inline button link TODO support multiple btns 
 @admin_router.message(Form.button_url, (F.text.contains('https://') | F.text.contains('http://')))
@@ -182,10 +153,7 @@ async def process_button_text(message: Message, state: FSMContext) -> None:
 # incorrect button url =(
 @admin_router.message(Form.button_url, ~(F.text.contains('https://') | F.text.contains('http://')))
 async def process_button_text(message: Message, state: FSMContext) -> None:
-    await message.answer(text='Неккоректная ссылка‼️', reply_markup=InlineKeyboardMarkup(
-                                        inline_keyboard=[
-                                            [InlineKeyboardButton(text='Закрыть конфигуратор❌', callback_data='close_configurator')]
-                                        ]))
+    await message.answer(text='Неккоректная ссылка‼️', reply_markup=close_configurer)
 
 # get from user weather configured post to be send in channel
 @admin_router.callback_query(Form.if_send, F.data == "send_post")
@@ -289,10 +257,7 @@ class MassMailing(StatesGroup):
 @admin_router.message(F.text.lower() == 'рассылка для пользователей')
 async def cmd_start(message: Message, bot: Bot, state: FSMContext):
     await state.set_state(MassMailing.post_text)
-    await message.answer(text='Конфигуратор рассылки пользователям бота. Введите текст поста или фотографию с текстом.', reply_markup=InlineKeyboardMarkup(
-                                        inline_keyboard=[
-                                            [InlineKeyboardButton(text='Закрыть конфигуратор❌', callback_data='close_configurator')]
-                                        ]))
+    await message.answer(text='Конфигуратор рассылки пользователям бота. Введите текст поста или фотографию с текстом.', reply_markup=close_configurer)
 
 # getting post text
 @admin_router.message(MassMailing.post_text, F.text)
@@ -302,12 +267,7 @@ async def process_post_text(message: Message, state: FSMContext) -> None:
     await state.set_state(MassMailing.post_photo)
     await state.update_data(post_photo=None)
 
-    await message.answer(text=f"Текст поста был сохранен. Вы хотите добавить инлайн кнопку к рассылке?", reply_markup=InlineKeyboardMarkup(
-                                        inline_keyboard=[
-                                            [InlineKeyboardButton(text='Да✅', callback_data='add_inline_btn')],
-                                            [InlineKeyboardButton(text='Нет🚫', callback_data='no_inline_btn')],
-                                            [InlineKeyboardButton(text='Закрыть конфигуратор❌', callback_data='close_configurator')] 
-                                        ]))
+    await message.answer(text=f"Текст поста был сохранен. Вы хотите добавить инлайн кнопку к рассылке?", reply_markup=if_add_inline)
     await state.set_state(MassMailing.button_text)
 
 
@@ -319,47 +279,30 @@ async def process_photo_caption(message: Message, state: FSMContext) -> None:
     await state.set_state(MassMailing.post_photo)
     await state.update_data(post_photo=message.photo[-1].file_id) 
 
-    await message.answer(text=f"Фотография с текстом были сохранены. Вы хотите добавить инлайн кнопку к рассылке? (можете сразу вводить текст на кнопке)", reply_markup=InlineKeyboardMarkup(
-                                        inline_keyboard=[
-                                            [InlineKeyboardButton(text='Да✅', callback_data='add_inline_btn')],
-                                            [InlineKeyboardButton(text='Нет🚫', callback_data='no_inline_btn')],
-                                            [InlineKeyboardButton(text='Закрыть конфигуратор❌', callback_data='close_configurator')] 
-                                        ]))
+    await message.answer(text=f"Фотография с текстом были сохранены. Вы хотите добавить инлайн кнопку к рассылке? (можете сразу вводить текст на кнопке)", reply_markup=if_add_inline)
     await state.set_state(MassMailing.button_text)
 
 # incorrect input text and photo
 @admin_router.message(MassMailing.post_text, ~(F.text | F.photo))
 async def process_incr_impt(message: Message, state: FSMContext) -> None:
-    await message.answer(text='Вам нужно прислать именно текст поста или фотографию с текстом!', reply_markup=InlineKeyboardMarkup(
-                                        inline_keyboard=[
-                                            [InlineKeyboardButton(text='Закрыть конфигуратор❌', callback_data='close_configurator')]
-                                        ]))
+    await message.answer(text='Вам нужно прислать именно текст поста или фотографию с текстом!', reply_markup=close_configurer)
 
 # adding inline buttons
 @admin_router.callback_query(MassMailing.button_text, F.data == 'add_inline_btn')
 async def add_inline_btns(callback: CallbackQuery, state: FSMContext) -> None:
-    await callback.message.answer(text="Вводите текст кнопки", reply_markup=InlineKeyboardMarkup(
-                                        inline_keyboard=[
-                                            [InlineKeyboardButton(text='Закрыть конфигуратор❌', callback_data='close_configurator')]
-                                        ]))
+    await callback.message.answer(text="Вводите текст кнопки", reply_markup=close_configurer)
 
 # getting button text
 @admin_router.message(MassMailing.button_text, F.text)
 async def get_btn_text(message: Message, state: FSMContext) -> None:
     await state.update_data(button_text=message.text)
-    await message.answer(text="Введите ссылку", reply_markup=InlineKeyboardMarkup(
-                                        inline_keyboard=[
-                                            [InlineKeyboardButton(text='Закрыть конфигуратор❌', callback_data='close_configurator')]
-                                        ]))
+    await message.answer(text="Введите ссылку", reply_markup=close_configurer)
     await state.set_state(MassMailing.button_url)
 
 # incorrect button text input
 @admin_router.message(MassMailing.button_text, ~F.text)
 async def incorrect_btn_text(message: Message, state: FSMContext) -> None:
-    await message.answer(text="Некорректный ввод", reply_markup=InlineKeyboardMarkup(
-                                        inline_keyboard=[
-                                            [InlineKeyboardButton(text='Закрыть конфигуратор❌', callback_data='close_configurator')]
-                                        ]))
+    await message.answer(text="Некорректный ввод", reply_markup=close_configurer)
     
 # getting button url
 @admin_router.message(MassMailing.button_url, (F.text.contains('https://') | F.text.contains('http://')))
@@ -388,10 +331,7 @@ async def get_btn_url(message: Message, state: FSMContext) -> None:
 # incorrect button url
 @admin_router.message(MassMailing.button_url, ~(F.text.contains('https://') | F.text.contains('http://')))
 async def get_btn_url(message: Message, state: FSMContext) -> None:
-    await message.answer(text='Некорректная ссылка', reply_markup=InlineKeyboardMarkup(
-                                        inline_keyboard=[
-                                            [InlineKeyboardButton(text='Закрыть конфигуратор❌', callback_data='close_configurator')]
-                                        ]))
+    await message.answer(text='Некорректная ссылка', reply_markup=close_configurer)
 
 # no inline buttons. Post configured
 @admin_router.callback_query(MassMailing.button_text, F.data == 'no_inline_btn')
@@ -444,7 +384,7 @@ async def start_broadcast(callback: CallbackQuery, state: FSMContext, bot: Bot, 
             except TelegramRetryAfter as e:
                 sleep(e.retry_after)
 
-@admin_router.callback_query(MassMailing.if_start, F.data == 'no_broadcast') # TODO make Broadcast class and add db integration
+@admin_router.callback_query(MassMailing.if_start, F.data == 'no_broadcast')
 async def no_broadcast(callback: CallbackQuery, state: FSMContext) -> None:
     await callback.message.edit_text('Рассылка отменена')
     await state.clear()
