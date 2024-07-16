@@ -3,16 +3,17 @@ from aiogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup, C
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
+from aiogram.exceptions import TelegramRetryAfter, TelegramForbiddenError 
 
 # importing admin keyboards
 from core.keyboards.admin_keyboard import admin_main_kb
-from sqlalchemy import update
+from sqlalchemy import update, select
 from core.filters.bot_filters import MemberTypeFilter
 
 # DB
 from sqlalchemy.ext.asyncio import AsyncSession
 from core.database.models import User, Document
-
+from asyncio import sleep
 
 admin_router = Router()
 admin_router.message.filter(MemberTypeFilter(["creator", "admin"]))
@@ -236,7 +237,6 @@ async def incorrect_button(message: Message, state: FSMContext):
 @admin_router.callback_query(F.data == 'close_configurator')
 async def cancel_configuring(callback: CallbackQuery, state: FSMContext):
     await state.clear()
-    await callback.message.answer(text='Конфигуратор закрыт❌')
     await callback.message.delete()
 
 
@@ -281,12 +281,170 @@ async def get_file(message: Message, state: FSMContext, session: AsyncSession):
 # FSM for admin to mass mail all active users in bot
 class MassMailing(StatesGroup):
     post_text = State()
+    post_photo = State()
     button_text = State()
     button_url = State()
+    if_start = State()
 
 @admin_router.message(F.text.lower() == 'рассылка для пользователей')
-async def start_dist(message: Message):
-    # users_lst = await get_all_users() # TODO get all users
-    # telegram_ids = [str(record['telegram_id']) for record in users_lst]
-    # await message.answer(text=','.join(telegram_ids))
-    await message.answer(text='123')
+async def cmd_start(message: Message, bot: Bot, state: FSMContext):
+    await state.set_state(MassMailing.post_text)
+    await message.answer(text='Конфигуратор рассылки пользователям бота. Введите текст поста или фотографию с текстом.', reply_markup=InlineKeyboardMarkup(
+                                        inline_keyboard=[
+                                            [InlineKeyboardButton(text='Закрыть конфигуратор❌', callback_data='close_configurator')]
+                                        ]))
+
+# getting post text
+@admin_router.message(MassMailing.post_text, F.text)
+async def process_post_text(message: Message, state: FSMContext) -> None:
+    await state.update_data(post_text=message.text)
+
+    await state.set_state(MassMailing.post_photo)
+    await state.update_data(post_photo=None)
+
+    await message.answer(text=f"Текст поста был сохранен. Вы хотите добавить инлайн кнопку к рассылке?", reply_markup=InlineKeyboardMarkup(
+                                        inline_keyboard=[
+                                            [InlineKeyboardButton(text='Да✅', callback_data='add_inline_btn')],
+                                            [InlineKeyboardButton(text='Нет🚫', callback_data='no_inline_btn')],
+                                            [InlineKeyboardButton(text='Закрыть конфигуратор❌', callback_data='close_configurator')] 
+                                        ]))
+    await state.set_state(MassMailing.button_text)
+
+
+# getting post text with photo
+@admin_router.message(MassMailing.post_text, F.photo)
+async def process_photo_caption(message: Message, state: FSMContext) -> None:
+    await state.update_data(post_text=message.caption)
+
+    await state.set_state(MassMailing.post_photo)
+    await state.update_data(post_photo=message.photo[-1].file_id) 
+
+    await message.answer(text=f"Фотография с текстом были сохранены. Вы хотите добавить инлайн кнопку к рассылке? (можете сразу вводить текст на кнопке)", reply_markup=InlineKeyboardMarkup(
+                                        inline_keyboard=[
+                                            [InlineKeyboardButton(text='Да✅', callback_data='add_inline_btn')],
+                                            [InlineKeyboardButton(text='Нет🚫', callback_data='no_inline_btn')],
+                                            [InlineKeyboardButton(text='Закрыть конфигуратор❌', callback_data='close_configurator')] 
+                                        ]))
+    await state.set_state(MassMailing.button_text)
+
+# incorrect input text and photo
+@admin_router.message(MassMailing.post_text, ~(F.text | F.photo))
+async def process_incr_impt(message: Message, state: FSMContext) -> None:
+    await message.answer(text='Вам нужно прислать именно текст поста или фотографию с текстом!', reply_markup=InlineKeyboardMarkup(
+                                        inline_keyboard=[
+                                            [InlineKeyboardButton(text='Закрыть конфигуратор❌', callback_data='close_configurator')]
+                                        ]))
+
+# adding inline buttons
+@admin_router.callback_query(MassMailing.button_text, F.data == 'add_inline_btn')
+async def add_inline_btns(callback: CallbackQuery, state: FSMContext) -> None:
+    await callback.message.answer(text="Вводите текст кнопки", reply_markup=InlineKeyboardMarkup(
+                                        inline_keyboard=[
+                                            [InlineKeyboardButton(text='Закрыть конфигуратор❌', callback_data='close_configurator')]
+                                        ]))
+
+# getting button text
+@admin_router.message(MassMailing.button_text, F.text)
+async def get_btn_text(message: Message, state: FSMContext) -> None:
+    await state.update_data(button_text=message.text)
+    await message.answer(text="Введите ссылку", reply_markup=InlineKeyboardMarkup(
+                                        inline_keyboard=[
+                                            [InlineKeyboardButton(text='Закрыть конфигуратор❌', callback_data='close_configurator')]
+                                        ]))
+    await state.set_state(MassMailing.button_url)
+
+# incorrect button text input
+@admin_router.message(MassMailing.button_text, ~F.text)
+async def incorrect_btn_text(message: Message, state: FSMContext) -> None:
+    await message.answer(text="Некорректный ввод", reply_markup=InlineKeyboardMarkup(
+                                        inline_keyboard=[
+                                            [InlineKeyboardButton(text='Закрыть конфигуратор❌', callback_data='close_configurator')]
+                                        ]))
+    
+# getting button url
+@admin_router.message(MassMailing.button_url, (F.text.contains('https://') | F.text.contains('http://')))
+async def get_btn_url(message: Message, state: FSMContext) -> None:
+    await state.update_data(button_url=message.text)
+
+    data = await state.get_data()
+    if data.get('post_photo') == None:
+        await message.answer(text=data.get('post_text'), reply_markup=InlineKeyboardMarkup(
+                                        inline_keyboard=[
+                                            [InlineKeyboardButton(text=data.get('button_text'), url=data.get('button_url'))]
+                                        ]))
+    else:
+        await message.answer_photo(photo=data.get('post_photo'), caption=data.get('post_text'), reply_markup=InlineKeyboardMarkup(
+                                        inline_keyboard=[
+                                            [InlineKeyboardButton(text=data.get('button_text'), url=data.get('button_url'))]
+                                        ]))
+        
+    await message.answer(text="Начинаем рассылку?",  reply_markup=InlineKeyboardMarkup(
+                                        inline_keyboard=[
+                                            [InlineKeyboardButton(text='Да✅', callback_data='start_broadcast')],
+                                            [InlineKeyboardButton(text='Нет🚫', callback_data='no_broadcast')],
+                                        ]))
+    await state.set_state(MassMailing.if_start)
+
+# incorrect button url
+@admin_router.message(MassMailing.button_url, ~(F.text.contains('https://') | F.text.contains('http://')))
+async def get_btn_url(message: Message, state: FSMContext) -> None:
+    await message.answer(text='Некорректная ссылка', reply_markup=InlineKeyboardMarkup(
+                                        inline_keyboard=[
+                                            [InlineKeyboardButton(text='Закрыть конфигуратор❌', callback_data='close_configurator')]
+                                        ]))
+
+# no inline buttons. Post configured
+@admin_router.callback_query(MassMailing.button_text, F.data == 'no_inline_btn')
+async def no_inline_btns(callback: CallbackQuery, state: FSMContext) -> None:
+    await state.update_data(button_text=None)
+    await state.set_state(MassMailing.button_url)
+    await state.update_data(button_url=None)
+    data = await state.get_data()
+    if data.get('post_photo') == None:
+        await callback.message.answer(text=data.get('post_text'))
+    else:
+        await callback.message.answer_photo(photo=data.get('post_photo'), caption=data.get('post_text'))
+    
+    await callback.message.answer(text="Начинаем рассылку?",  reply_markup=InlineKeyboardMarkup(
+                                        inline_keyboard=[
+                                            [InlineKeyboardButton(text='Да✅', callback_data='start_broadcast')],
+                                            [InlineKeyboardButton(text='Нет🚫', callback_data='no_broadcast')],
+                                        ]))
+        
+    await state.set_state(MassMailing.if_start)
+
+@admin_router.callback_query(MassMailing.if_start, F.data == 'start_broadcast') 
+async def start_broadcast(callback: CallbackQuery, state: FSMContext, bot: Bot, session: AsyncSession) -> None:
+    stmt = select(User.id).execution_options(stream_results=True, max_row_buffer=20)
+    rows = await session.stream(statement=stmt)
+
+    data = await state.get_data()
+
+    post_text = data.get('post_text')
+    post_photo = data.get('post_photo')
+    btn = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text=data.get('button_text'), url=data.get('button_url'))]]) if data.get('button_text') != None else None
+
+    # TODO make Broadcast class in utils dir and add db integration
+    if post_photo == None:
+        async for row in rows:  
+            try:
+                await bot.send_message(chat_id=row.id, text=post_text, reply_markup=btn)
+                await sleep(0.05)
+            except TelegramForbiddenError as e:
+                pass 
+            except TelegramRetryAfter as e:
+                sleep(e.retry_after)
+    else:
+        async for row in rows:  
+            try:
+                await bot.send_photo(chat_id=row.id, photo=post_photo,caption=post_text, reply_markup=btn)
+                await sleep(0.05)
+            except TelegramForbiddenError as e:
+                pass 
+            except TelegramRetryAfter as e:
+                sleep(e.retry_after)
+
+@admin_router.callback_query(MassMailing.if_start, F.data == 'no_broadcast') # TODO make Broadcast class and add db integration
+async def no_broadcast(callback: CallbackQuery, state: FSMContext) -> None:
+    await callback.message.edit_text('Рассылка отменена')
+    await state.clear()
