@@ -355,15 +355,15 @@ async def no_inline_btns(callback: CallbackQuery, state: FSMContext) -> None:
 
 @admin_router.callback_query(MassMailing.if_start, F.data == 'start_broadcast') 
 async def start_broadcast(callback: CallbackQuery, state: FSMContext, bot: Bot, session: AsyncSession) -> None:
-    stmt = select(User.id).execution_options(stream_results=True, max_row_buffer=20)
-    rows = await session.stream(statement=stmt)
+    await callback.message.edit_text(text='Рассылка запущена⚙️')
 
     data = await state.get_data()
-
     post_text = data.get('post_text')
     post_photo = data.get('post_photo')
     btn = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text=data.get('button_text'), url=data.get('button_url'))]]) if data.get('button_text') != None else None
 
+    stmt = select(User.id).execution_options(stream_results=True, max_row_buffer=20)
+    rows = await session.stream(statement=stmt)
     # TODO make Broadcast class in utils dir and add db integration
     if post_photo == None:
         async for row in rows:  
@@ -383,6 +383,8 @@ async def start_broadcast(callback: CallbackQuery, state: FSMContext, bot: Bot, 
                 pass 
             except TelegramRetryAfter as e:
                 sleep(e.retry_after)
+    
+    await state.clear()
 
 @admin_router.callback_query(MassMailing.if_start, F.data == 'no_broadcast')
 async def no_broadcast(callback: CallbackQuery, state: FSMContext) -> None:
